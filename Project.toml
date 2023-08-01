@@ -1,0 +1,9 @@
+name = "AlternatingDirectionImplicit"
+uuid = "15a50297-6c96-42f2-b429-f639dcf4c52e"
+authors = ["Sheehan Olver <solver@mac.com>"]
+version = "0.1.0"
+
+[deps]
+Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
+HypergeometricFunctions = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
