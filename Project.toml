@@ -1,7 +1,7 @@
 name = "AlternatingDirectionImplicit"
 uuid = "15a50297-6c96-42f2-b429-f639dcf4c52e"
 authors = ["Sheehan Olver <solver@mac.com>"]
-version = "0.1.0"
+version = "0.0.1"
 
 [deps]
 Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
