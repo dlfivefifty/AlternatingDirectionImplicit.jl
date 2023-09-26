@@ -2,7 +2,7 @@ module AlternatingDirectionImplicit
 
 using HypergeometricFunctions, Elliptic, LinearAlgebra
 
-export ADI
+export adi
 
 # These 4 routines from ADI were lifted from Kars' M4R repo.
 function mobius(z, a, b, c, d, α)
@@ -14,7 +14,7 @@ function mobius(z, a, b, c, d, α)
     (t₁*z + t₂)/(t₃*z + t₄)
 end
 
-ellipticK(z) = convert(eltype(α),π)/2*HypergeometricFunctions._₂F₁(one(α)/2,one(α)/2,1, z)
+# elliptick(z) = convert(eltype(α),π)/2*HypergeometricFunctions._₂F₁(one(α)/2,one(α)/2,1, z)
 
 
 function ADI_shifts(J, a, b, c, d, tol=1e-15)
@@ -22,7 +22,7 @@ function ADI_shifts(J, a, b, c, d, tol=1e-15)
     α = -1 + 2γ + 2√Complex(γ^2 - γ)
     α = Real(α)
 
-    # K = ellipticK(1-1/big(α)^2)
+    # K = elliptick(1-1/big(α)^2)
     if α < 1e7
         K = Elliptic.K(1-1/α^2)
         dn = Elliptic.Jacobi.dn.((2*(0:J-1) .+ 1)*K/(2J), 1-1/α^2)
@@ -35,9 +35,8 @@ function ADI_shifts(J, a, b, c, d, tol=1e-15)
 
     [mobius(-α*i, a, b, c, d, α) for i = dn], [mobius(α*i, a, b, c, d, α) for i = dn]
 end
-
-function ADI(A, B, C, F, a, b, c, d; tolerance=1e-15, factorize=factorize)
-    "ADI method for solving standard sylvester AX - XB = F"
+"ADI method for solving standard sylvester AX - XB = F"
+function adi(A, B, C, F, a, b, c, d; tolerance=1e-15, factorize=factorize)
     # Modified slightly by John to allow for the mass matrix
     n = size(A)[1]
     X = zeros(axes(A))
