@@ -1,8 +1,8 @@
 module AlternatingDirectionImplicit
 
 using HypergeometricFunctions, Elliptic, LinearAlgebra
-
-export adi
+import Base: *
+export adi, plan_adi!
 
 # These 4 routines from ADI were lifted from Kars' M4R repo.
 function mobius(z, a, b, c, d, α)
@@ -17,7 +17,7 @@ end
 # elliptick(z) = convert(eltype(α),π)/2*HypergeometricFunctions._₂F₁(one(α)/2,one(α)/2,1, z)
 
 
-function ADI_shifts(J, a, b, c, d, tol=1e-15)
+function adi_shifts(J, a, b, c, d, tol=1e-15)
     γ = (c-a)*(d-b)/((c-b)*(d-a))
     α = -1 + 2γ + 2√Complex(γ^2 - γ)
     α = Real(α)
@@ -36,21 +36,55 @@ function ADI_shifts(J, a, b, c, d, tol=1e-15)
     [mobius(-α*i, a, b, c, d, α) for i = dn], [mobius(α*i, a, b, c, d, α) for i = dn]
 end
 "ADI method for solving standard sylvester AX - XB = F"
-function adi(A, B, C, F, a, b, c, d; tolerance=1e-15, factorize=factorize)
-    # Modified slightly by John to allow for the mass matrix
-    n = size(A)[1]
-    X = zeros(axes(A))
 
+struct ADIPlan{T, AA, BB, CC, DD}
+    As::AA
+    Bs::BB
+    Cfacs::CC
+    Dfacs::DD
+    p::Vector{T}
+    q::Vector{T}
+    tmp1::Matrix{T}
+    tmp2::Matrix{T}
+end
+
+
+
+
+function plan_adi!(A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize)
     γ = (c-a)*(d-b)/((c-b)*(d-a))
     J = Int(ceil(log(16γ)*log(4/tolerance)/π^2))
     # J = 200
-    p, q = ADI_shifts(J, a, b, c, d, tolerance)
+    p, q = adi_shifts(J, a, b, c, d, tolerance)
+    ADIPlan([(A/p[j] - C) for j = 1:J], 
+            [(B/q[j] - C) for j=1:J],
+            [factorize(C - B/p[j]) for j=1:J],
+            [factorize(C - A/q[j]) for j=1:J],
+            p, q, 
+            Matrix{eltype(A)}(undef, size(A,2), size(B,1)),
+            Matrix{eltype(A)}(undef, size(A,2), size(B,1)))
+end
 
+
+adi!(F, A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize) = plan_adi!(A, B, C, a, b, c, d; tolerance=tolerance, factorize=factorize) * F
+adi(F, A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize) = adi!(copy(F), A, B, C, a, b, c, d; tolerance=tolerance, factorize=factorize)
+
+*(P::ADIPlan, F::AbstractMatrix) = P * convert(Matrix, F)
+function *(P::ADIPlan, F::Matrix{T}) where T
+    p,q,As,Bs,Cfacs,Dfacs,X,Y = P.p,P.q,P.As,P.Bs,P.Cfacs,P.Dfacs,P.tmp1,P.tmp2
+    J = length(P.p)
     for j = 1:J
-        X = ((A/p[j] - C)*X - F/p[j])/factorize(C - B/p[j])
-        X = factorize(C - A/q[j])\(X*(B/q[j] - C) - F/q[j])
+        # (As[j]*X - F/p[j])
+        if j ≠ 1
+            mul!(Y, As[j], X)
+        end
+        X .= Y .- F ./ p[j]
+        rdiv!(X, Cfacs[j])
+        # (X*Bs[j] - F/q[j])
+        mul!(Y, X, Bs[j])
+        X .= Y .- F ./ q[j]
+        ldiv!(Dfacs[j], X)
     end
-
     X
 end
 
