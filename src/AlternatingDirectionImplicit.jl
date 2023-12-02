@@ -77,8 +77,10 @@ function *(P::ADIPlan, F::Matrix{T}) where T
         # (As[j]*X - F/p[j])
         if j ≠ 1
             mul!(Y, As[j], X)
+            X .= Y .- F ./ p[j]
+        else
+            Y .= (-).(F ./ p[j])
         end
-        X .= Y .- F ./ p[j]
         rdiv!(X, Cfacs[j])
         # (X*Bs[j] - F/q[j])
         mul!(Y, X, Bs[j])
