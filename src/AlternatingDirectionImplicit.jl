@@ -79,7 +79,7 @@ function *(P::ADIPlan, F::Matrix{T}) where T
             mul!(Y, As[j], X)
             X .= Y .- F ./ p[j]
         else
-            Y .= (-).(F ./ p[j])
+            X .= (-).(F ./ p[j])
         end
         rdiv!(X, Cfacs[j])
         # (X*Bs[j] - F/q[j])
