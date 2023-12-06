@@ -37,18 +37,24 @@ function adi_shifts(J, a, b, c, d, tol=1e-15)
 end
 "ADI method for solving standard sylvester AX - XB = F"
 
-struct ADIPlan{T, AA, BB, CC, DD}
+struct ADIPlan{T, AA, BB, CC, DD, CCfac}
     As::AA
     Bs::BB
     Cfacs::CC
     Dfacs::DD
     p::Vector{T}
     q::Vector{T}
+    C0fac::CCfac # for rdiv!(X, C) at the end
     tmp1::Matrix{T}
     tmp2::Matrix{T}
 end
 
 
+function plan_adi!(A, B, C; kwds...)
+    λs = eigvals(Symmetric(A), Symmetric(C))
+    e1s, e2s = minimum(λs), maximum(λs)
+    plan_adi!(A, B, C, e1s, e2s, -e2s, -e1s; kwds...)
+end
 
 
 function plan_adi!(A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize)
@@ -61,21 +67,22 @@ function plan_adi!(A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize)
             [factorize(C - B/p[j]) for j=1:J],
             [factorize(C - A/q[j]) for j=1:J],
             p, q, 
+            factorize(C),
             Matrix{eltype(A)}(undef, size(A,2), size(B,1)),
             Matrix{eltype(A)}(undef, size(A,2), size(B,1)))
 end
 
 
-adi!(F, A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize) = plan_adi!(A, B, C, a, b, c, d; tolerance=tolerance, factorize=factorize) * F
-adi(F, A, B, C, a, b, c, d; tolerance=1e-15, factorize=factorize) = adi!(copy(F), A, B, C, a, b, c, d; tolerance=tolerance, factorize=factorize)
+adi!(F, A, B, C, a...; tolerance=1e-15, factorize=factorize) = plan_adi!(A, B, C, a...; tolerance=tolerance, factorize=factorize) * F
+adi(F, A, B, C, a...; tolerance=1e-15, factorize=factorize) = adi!(copy(F), A, B, C, a...; tolerance=tolerance, factorize=factorize)
 
 *(P::ADIPlan, F::AbstractMatrix) = P * convert(Matrix, F)
 function *(P::ADIPlan, F::Matrix{T}) where T
     p,q,As,Bs,Cfacs,Dfacs,X,Y = P.p,P.q,P.As,P.Bs,P.Cfacs,P.Dfacs,P.tmp1,P.tmp2
     J = length(P.p)
     for j = 1:J
-        # (As[j]*X - F/p[j])
-        if j ≠ 1
+        if j ≠ 1
+            # (As[j]*X - F/p[j])
             mul!(Y, As[j], X)
             X .= Y .- F ./ p[j]
         else
@@ -87,7 +94,7 @@ function *(P::ADIPlan, F::Matrix{T}) where T
         X .= Y .- F ./ q[j]
         ldiv!(Dfacs[j], X)
     end
-    X
+    rdiv!(X, P.C0fac)
 end
 
 end # module AlternatingDirectionImplicit
