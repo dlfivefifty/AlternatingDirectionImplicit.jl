@@ -95,6 +95,7 @@ function *(P::ADIPlan, F::Matrix{T}) where T
         ldiv!(Dfacs[j], X)
     end
     rdiv!(X, P.C0fac)
+    copyto!(F, X)
 end
 
 end # module AlternatingDirectionImplicit
